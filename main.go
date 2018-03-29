@@ -118,7 +118,7 @@ func mailHandler(origin net.Addr, from string, to []string, data []byte) {
     }
     
     if len(textMsgs) > 0 {
-        bodyStr := string(textMsgs[0].Body)
+        bodyStr := fmt.Sprintf("*%s*\n\n%s", subject, string(textMsgs[0].Body))
         tgMsg := tgbotapi.NewMessage(i, bodyStr)
         tgMsg.ParseMode = tgbotapi.ModeMarkdown
         _, err = bot.Send(tgMsg)
