@@ -4,6 +4,7 @@ import (
         "./smtpd"
         "bytes"
         "flag"
+        "fmt"
         "github.com/spf13/viper"
         "github.com/veqryn/go-email/email"
         "gopkg.in/telegram-bot-api.v4"
