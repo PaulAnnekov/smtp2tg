@@ -81,13 +81,11 @@ func main() {
 	log.Fatal(err_.Error())
     }
 }
-    
+
 func mailHandler(origin net.Addr, from string, to []string, data []byte) {
     
-    from = strings.Trim(from, " ")
-    to[0] = strings.Trim(to[0], " ")
-    to[0] = strings.Trim(to[0], "<")
-    to[0] = strings.Trim(to[0], ">")
+    from = strings.Trim(from, " ><")
+    to[0] = strings.Trim(to[0], " ><")
     msg, err := email.ParseMessage(bytes.NewReader(data))
     if( err != nil ) {
 	log.Printf("[MAIL ERROR]: %s", err.Error())
@@ -98,8 +96,8 @@ func mailHandler(origin net.Addr, from string, to []string, data []byte) {
     
     // Find receivers and send to TG
     var tgid string
-    if( receivers[to[0]] != "" ) {
-	tgid = receivers[to[0]]
+    if( receivers[from] != "" ) {
+	tgid = receivers[from]
     } else {
 	tgid = receivers["*"]
     }
