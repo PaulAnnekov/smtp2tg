@@ -10,6 +10,7 @@ import (
         "gopkg.in/telegram-bot-api.v4"
         "log"
         "net"
+        "net/smtp"
         "os"
         "strconv"
         "strings"
@@ -18,6 +19,8 @@ import (
 var receivers map[string]string
 var bot *tgbotapi.BotAPI
 var debug bool
+var isFallback bool
+var fallbackAuth smtp.Auth
 
 func main() {
 
@@ -31,6 +34,8 @@ func main() {
         if err != nil {
                 log.Fatal(err.Error())
         }
+        viper.SetDefault("fallback.user", "")
+        viper.SetDefault("fallback.password", "")
 
         // Logging
         logfile := viper.GetString("logging.file")
@@ -72,6 +77,17 @@ func main() {
                 log.Fatal(err.Error())
         }
         log.Printf("Bot authorized as %s", bot.Self.UserName)
+
+        // Initialize fallback auth
+        isFallback = viper.IsSet("fallback.host")
+        if isFallback {
+                fallbackAuth = smtp.PlainAuth(
+                        "",
+                        viper.GetString("fallback.user"),
+                        viper.GetString("fallback.password"),
+                        viper.GetString("fallback.host"),
+                )
+        }
 
         log.Printf("Initializing smtp server on %s...", listen)
         // Initialize SMTP server
@@ -123,6 +139,7 @@ func mailHandler(origin net.Addr, from string, to []string, data []byte) {
                 _, err = bot.Send(tgMsg)
                 if err != nil {
                         log.Printf("[ERROR]: telegram message send: '%s'", err.Error())
+                        mailFallback(from, to, data)
                         return
                 }
         }
@@ -147,5 +164,23 @@ func mailHandler(origin net.Addr, from string, to []string, data []byte) {
                         log.Printf("[ERROR]: telegram photo send: '%s'", err.Error())
                         return
                 }
+        }
+}
+
+func mailFallback(from string, to []string, data []byte) {
+        if !isFallback {
+                return
+        }
+        log.Printf("Sending to fallback email")
+        err := smtp.SendMail(
+                fmt.Sprintf("%s:%s", viper.GetString("fallback.host"),
+                        viper.GetString("fallback.port")),
+                fallbackAuth,
+                from,
+                to,
+                data,
+        )
+        if err != nil {
+                log.Printf("[ERROR]: fallback mail send", err.Error())
         }
 }
