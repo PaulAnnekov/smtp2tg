@@ -11,19 +11,27 @@ import (
 	"log"
 	"net"
 	"net/smtp"
+	"net/mail"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+	"regexp"
 )
 
-const QueueLength = 500
+const queueLength = 500
 
-type QueueItem struct {
+type queueItem struct {
 	from string
+	isPin bool
 	to   []string
 	msg  *email.Message
 	data []byte
+}
+
+type address struct {
+	Address string
+	Tag     string
 }
 
 var receivers map[string]int64
@@ -31,10 +39,10 @@ var bot *tgbotapi.BotAPI
 var debug bool
 var isFallback bool
 var fallbackAuth smtp.Auth
-var queues map[int64]chan QueueItem
+var queues map[int64]chan queueItem
 
 func main() {
-	queues = make(map[int64]chan QueueItem)
+	queues = make(map[int64]chan queueItem)
 
 	configFilePath := flag.String("c", "./smtp2tg.toml", "Config file location")
 	//pidFilePath := flag.String("p", "/var/run/smtp2tg.pid", "Pid file location")
@@ -76,7 +84,7 @@ func main() {
 			return
 		}
 		receivers[address] = i
-		queues[i] = make(chan QueueItem, QueueLength)
+		queues[i] = make(chan queueItem, queueLength)
 	}
 
 	var token string = viper.GetString("bot.token")
@@ -123,9 +131,28 @@ func main() {
 	}
 }
 
+func parseAddress(in string) (*address, error) {
+	addressParts, err := mail.ParseAddress(in)
+	if err != nil {
+		return nil, err
+	}
+	parsedAddress := address{Address: addressParts.Address}
+	tagRe := regexp.MustCompile("\\+(.+)@")
+	matches := tagRe.FindStringSubmatch(parsedAddress.Address)
+	if len(matches)>0 {
+		parsedAddress.Tag = matches[1]
+		parsedAddress.Address = strings.Replace(parsedAddress.Address, "+"+parsedAddress.Tag, "", 1)
+	}
+	return &parsedAddress, nil
+}
+
 func mailHandler(origin net.Addr, from string, to []string, data []byte) {
 
-	from = strings.Trim(from, " ><")
+	fromAddress, err := parseAddress(from)
+	if err != nil {
+		log.Printf("[MAIL ERROR]: invalid address '%s': %s", from, err.Error())
+		return
+	}
 	to[0] = strings.Trim(to[0], " ><")
 	msg, err := email.ParseMessage(bytes.NewReader(data))
 	if err != nil {
@@ -136,7 +163,7 @@ func mailHandler(origin net.Addr, from string, to []string, data []byte) {
 	log.Printf("Received mail from '%s' for '%s' with subject '%s'", from, to[0], subject)
 
 	// Find receivers and send to TG
-	var tgid = receivers[from]
+	var tgid = receivers[fromAddress.Address]
 	if tgid == 0 {
 		tgid = receivers["*"]
 	}
@@ -150,8 +177,9 @@ func mailHandler(origin net.Addr, from string, to []string, data []byte) {
 
 	log.Printf("Relaying message to: %d", tgid)
 
-	queues[tgid] <- QueueItem{
-		from: from,
+	queues[tgid] <- queueItem{
+		from: fromAddress.Address,
+		isPin: fromAddress.Tag=="pin",
 		to:   to,
 		msg:  msg,
 		data: data,
@@ -163,7 +191,7 @@ func handleQueue() {
 	for {
 		var queueLength = 0
 		for id, items := range queues {
-			var item QueueItem
+			var item queueItem
 			select {
 			case res := <-items:
 				item = res
@@ -178,11 +206,18 @@ func handleQueue() {
 				bodyStr := fmt.Sprintf("*%s*\n\n%s", subject, string(textMsgs[0].Body))
 				tgMsg := tgbotapi.NewMessage(id, bodyStr)
 				tgMsg.ParseMode = tgbotapi.ModeMarkdown
-				_, err := bot.Send(tgMsg)
+				res, err := bot.Send(tgMsg)
 				if err != nil {
 					log.Printf("[ERROR]: telegram message send: '%s'", err.Error())
 					mailFallback(item.from, item.to, item.data)
 					continue
+				}
+				if item.isPin {
+					pinConfig := tgbotapi.PinChatMessageConfig{ChatID: id, MessageID: res.MessageID, DisableNotification: true}
+					_, err := bot.PinChatMessage(pinConfig)
+					if err != nil {
+						log.Printf("[ERROR]: telegram pin message: '%s'", err.Error())
+					}
 				}
 			}
 			// TODO Better to use 'sendMediaGroup' to send all attachments as a
