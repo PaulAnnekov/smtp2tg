@@ -2,6 +2,13 @@
 
 SMTP 2 Telegram very simple relay.
 
+It's a fork of abandoned [ircop/smtp2tg](https://github.com/ircop/smtp2tg). Contains several improvements that original maintainer may not want to merge. The difference:
+- docker container build [ghcr.io/paulannekov/smtp2tg](https://github.com/PaulAnnekov/smtp2tg/pkgs/container/smtp2tg)
+- fresh Go version with go modules
+- fallback to email if Telegram API is unavailable
+- support of message pinning when email address contains `+pin` tag
+- several refactorings
+
 ## Building
 
 Building requires go version go1.18.0. You may use older versions, but without any warranty.
