@@ -54,8 +54,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-	viper.SetDefault("fallback.user", "")
-	viper.SetDefault("fallback.password", "")
 
 	// Logging
 	logfile := viper.GetString("logging.file")
@@ -110,7 +108,7 @@ func main() {
 
 	// Initialize fallback auth
 	isFallback = viper.IsSet("fallback.host")
-	if isFallback {
+	if isFallback && viper.IsSet("fallback.user") {
 		fallbackAuth = smtp.PlainAuth(
 			"",
 			viper.GetString("fallback.user"),
@@ -266,6 +264,6 @@ func mailFallback(from string, to []string, data []byte) {
 		data,
 	)
 	if err != nil {
-		log.Printf("[ERROR]: fallback mail send", err.Error())
+		log.Printf("[ERROR]: fallback mail send: '%s'", err.Error())
 	}
 }
