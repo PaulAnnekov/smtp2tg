@@ -1,7 +1,7 @@
 package main
 
 import (
-	"./smtpd"
+	"github.com/PaulAnnekov/smtp2tg/smtpd"
 	"bytes"
 	"flag"
 	"fmt"

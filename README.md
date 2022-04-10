@@ -1,13 +1,14 @@
 # smtp2tg
-SMTP 2 Telegram very simple relay
 
-# Building
-Building requires go version go1.6.1. You may use older versions, but without any warranty.
+SMTP 2 Telegram very simple relay.
 
-Before build, you must instal several packages:
+## Building
+
+Building requires go version go1.18.0. You may use older versions, but without any warranty.
+
+Before build, you must instal packages:
 ```
-go get gopkg.in/telegram-bot-api.v4
-go get github.com/spf13/viper
+go get
 ```
 
 And build program:
@@ -15,7 +16,8 @@ And build program:
 go build
 ```
 
-# Running
+## Running
+
 Copy binary file to /usr/local/bin, or just run from building directory:
 
 ```
@@ -27,14 +29,20 @@ or
 ```
 If you want to listen 25 port, you need run program as root.
 
+## Running Docker container
 
-# Daemonizing
+```bash
+docker run -v $(pwd)/smtp2tg.toml:/config/smtp2tg.toml:ro --name smtp2tg ghcr.io/paulannekov/smtp2tg:latest
+```
+
+## Daemonizing
+
 Unfortunately, golang has some problems with daemonizing: https://github.com/golang/go/issues/227
 
 You can "daemonize" smtp2tg with system tools, like start-stop-daemon
 
+## Usage
 
-# Usage
 You need to point valid dns MX-record to ipaddr, on which daemon is listening.
 Example, if smtp2tg is listening on 1.2.3.4:
 ```
