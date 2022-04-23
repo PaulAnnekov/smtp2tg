@@ -207,7 +207,9 @@ loop:
 
 	    // Pass mail on to handler.
 	    if s.srv.Handler != nil {
-		go s.srv.Handler(s.conn.RemoteAddr(), from, to, buffer.Bytes())
+			var copyBuffer bytes.Buffer
+			copyBuffer.Write(buffer.Bytes())
+			go s.srv.Handler(s.conn.RemoteAddr(), from, to, copyBuffer.Bytes())
 	    }
 
 	    // Reset for next mail.
