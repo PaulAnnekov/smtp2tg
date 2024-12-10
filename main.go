@@ -246,7 +246,8 @@ func handleQueue() {
 			prevQueueLength = queueLength
 		}
 
-		time.Sleep(time.Second)
+		// There is a limit of 20 messages per minute https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this
+		time.Sleep(3 * time.Second)
 	}
 }
 
