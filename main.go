@@ -188,6 +188,7 @@ func handleQueue() {
 	var prevQueueLength = 0
 	for {
 		var queueLength = 0
+		var idle = true
 		for id, items := range queues {
 			var item queueItem
 			select {
@@ -196,6 +197,7 @@ func handleQueue() {
 			default:
 				continue
 			}
+			idle = false
 			queueLength += len(items)
 			subject := item.msg.Header.Get("Subject")
 			textMsgs := item.msg.MessagesContentTypePrefix("text")
@@ -239,15 +241,18 @@ func handleQueue() {
 					continue
 				}
 			}
+			// There is a limit of 20 messages per minute https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this
+			time.Sleep(3 * time.Second)
 		}
 
 		if prevQueueLength != queueLength {
 			log.Printf("[INFO]: pending messages: %d", queueLength)
 			prevQueueLength = queueLength
 		}
-
-		// There is a limit of 20 messages per minute https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this
-		time.Sleep(3 * time.Second)
+		// All queues are empty, wait before polling again to not burn CPU
+		if idle {
+			time.Sleep(time.Second)
+		}
 	}
 }
 
